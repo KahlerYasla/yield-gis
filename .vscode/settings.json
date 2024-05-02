@@ -1,0 +1,14 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "yield_gis_db",
+            "database": "yield_gis_db",
+            "username": "kahler",
+            "password": ""
+        }
+    ]
+}
