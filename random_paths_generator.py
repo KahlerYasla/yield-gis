@@ -1,35 +1,63 @@
-import numpy as np
-from shapely.geometry import LineString, Point
+import random
+import datetime
 import psycopg2
-from datetime import datetime, timedelta
+from shapely.geometry import Point, LineString
+import geopandas as gpd
 
-# Define start and end points
+# Define the start and finish points
 start_point = Point(36.26572, 32.59500)
-end_point = Point(36.34925, 32.44838)
+finish_point = Point(36.34925, 32.44838)
 
-# Connect to PostGIS database
+# Connect to PostgreSQL/PostGIS
 conn = psycopg2.connect("dbname='postgres' user='kahler' host='localhost' password='3755'")
 cur = conn.cursor()
 
-# Function to generate random path
-def generate_random_path(start_point, end_point, duration):
-    # Generate random points between start and end points
-    num_points = int(duration.total_seconds() / 60)  # Number of points per minute
-    lons = np.linspace(start_point.x, end_point.x, num_points)
-    lats = np.linspace(start_point.y, end_point.y, num_points)
-    
-    # Create LineString from the random points
-    path = LineString(zip(lons, lats))
-    return path
+# Create a table to store the biker paths
+cur.execute("""
+    CREATE TABLE biker_paths (
+        id SERIAL PRIMARY KEY,
+        biker_id INT,
+        timestamp TIMESTAMP,
+        geom GEOMETRY(LINESTRING, 4326)
+    )
+""")
 
-# Generate and store random paths for 10 racers
-for racer_id in range(1, 11):
-    # Generate random path for each racer
-    random_path = generate_random_path(start_point, end_point, timedelta(minutes=20))
-    
-    # Insert path into PostGIS table
-    cur.execute("INSERT INTO racer_paths (racer_id, path_geom) VALUES (%s, ST_GeomFromText(%s, 4326))", (racer_id, random_path.wkt))
+# Generate random biker paths and insert into the table
+biker_count = 10
+total_time = datetime.timedelta(minutes=20)
+time_interval = datetime.timedelta(seconds=15)
 
-# Commit changes and close connection
+for biker_id in range(1, biker_count + 1):
+    current_time = datetime.datetime.now()
+    current_point = start_point
+    biker_path = [current_point]
+
+    while current_time < datetime.datetime.now() + total_time:
+        # Generate random next point within bounding box
+        next_point = Point(
+            random.uniform(current_point.x - 0.01, current_point.x + 0.01),
+            random.uniform(current_point.y - 0.01, current_point.y + 0.01)
+        )
+        biker_path.append(next_point)
+
+        # Insert point into the table
+        cur.execute("""
+            INSERT INTO biker_paths (biker_id, timestamp, geom)
+            VALUES (%s, %s, ST_SetSRID(ST_MakeLine(ARRAY[%s, %s]), 4326))
+        """, (biker_id, current_time, current_point.coords[0], next_point.coords[0]))
+
+        current_point = next_point
+        current_time += time_interval
+
+    # Add the finish point
+    biker_path.append(finish_point)
+
+    # Insert the complete path into the table
+    cur.execute("""
+        INSERT INTO biker_paths (biker_id, timestamp, geom)
+        VALUES (%s, %s, ST_SetSRID(ST_MakeLine(%s), 4326))
+    """, (biker_id, current_time, [point.coords[0] for point in biker_path]))
+
+# Commit the changes and close the connection
 conn.commit()
 conn.close()
