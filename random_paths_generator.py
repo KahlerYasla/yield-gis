@@ -10,21 +10,22 @@ cur = conn.cursor()
 
 # Create a table to store the biker paths
 cur.execute("""
-    DROP TABLE IF EXISTS biker_paths;
     DROP TABLE IF EXISTS time_nodes;
-    CREATE TABLE time_nodes (
-        id SERIAL PRIMARY KEY,
-        time TIMESTAMP,
-        caloric_burn_until_now INT,
-        distance_until_now INT,
-        geom GEOMETRY(POINT, 4326)
-    );
+    DROP TABLE IF EXISTS biker_paths;
     CREATE TABLE biker_paths (
         id SERIAL PRIMARY KEY,
         biker_id INT,
-        time_node_id INT,
-        geom GEOMETRY(LINESTRING, 4326),
-        FOREIGN KEY (time_node_id) REFERENCES time_nodes(id)
+        geom GEOMETRY(LINESTRING, 4326)
+    );
+
+    CREATE TABLE time_nodes (
+        id SERIAL PRIMARY KEY,
+        biker_id INT,
+        time TIMESTAMP,
+        caloric_burn_until_now INT,
+        distance_until_now INT,
+        geom GEOMETRY(POINT, 4326),
+        FOREIGN KEY (biker_id) REFERENCES biker_paths(id)
     );
 """)
 
@@ -65,15 +66,15 @@ for biker_id in range(1, biker_count + 1):
         next_point = generate_next_point(current_point)
         # Insert lines into the table
         cur.execute("""
-            INSERT INTO biker_paths (biker_id, time_node_id, geom)
-            VALUES (%s, (SELECT id FROM time_nodes WHERE time = %s), ST_SetSRID(ST_MakeLine(ST_Point(%s,%s), ST_Point(%s,%s)), 4326))
-        """, (biker_id, current_time, current_point.x, current_point.y, next_point.x, next_point.y))
+            INSERT INTO biker_paths (biker_id, geom)
+            VALUES (%s, ST_SetSRID(ST_MakeLine(ST_Point(%s,%s), ST_Point(%s,%s)), 4326))
+        """, (biker_id, current_point.x, current_point.y, next_point.x, next_point.y))
 
         # Insert the time node into the table
         cur.execute("""
-            INSERT INTO time_nodes (time, caloric_burn_until_now, distance_until_now, geom)
-            VALUES (%s, %s, %s, ST_Point(%s,%s))
-        """, (current_time, caloric_burn_until_now, distance_until_now, current_point.x, current_point.y))
+            INSERT INTO time_nodes (time, biker_id, caloric_burn_until_now, distance_until_now, geom)
+            VALUES (%s, %s, %s, %s, ST_Point(%s,%s))
+        """, (current_time, biker_id, caloric_burn_until_now, distance_until_now, current_point.x, current_point.y))
 
         distance_between_points = current_point.distance(next_point) * 111000
         distance_until_now += distance_between_points
@@ -84,23 +85,23 @@ for biker_id in range(1, biker_count + 1):
 
     # Insert the lats line into the table
     cur.execute("""
-        INSERT INTO biker_paths (biker_id, time_node_id, geom)
-        VALUES (%s, (SELECT id FROM time_nodes WHERE time = %s), ST_SetSRID(ST_MakeLine(ST_Point(%s,%s), ST_Point(%s,%s)), 4326))
-    """, (biker_id, current_time, current_point.x, current_point.y, finish_point.x, finish_point.y))
+        INSERT INTO biker_paths (biker_id, geom)
+        VALUES (%s, ST_SetSRID(ST_MakeLine(ST_Point(%s,%s), ST_Point(%s,%s)), 4326))
+    """, (biker_id, current_point.x, current_point.y, finish_point.x, finish_point.y))
 
     cur.execute("""
-        INSERT INTO time_nodes (time, caloric_burn_until_now, distance_until_now, geom)
-        VALUES (%s, %s, %s, ST_Point(%s,%s))
-    """, (current_time, caloric_burn_until_now, distance_until_now, current_point.x, current_point.y))
+        INSERT INTO time_nodes (time, biker_id, caloric_burn_until_now, distance_until_now, geom)
+        VALUES (%s, %s, %s, %s, ST_Point(%s,%s))
+    """, (current_time, biker_id, caloric_burn_until_now, distance_until_now, current_point.x, current_point.y))
 
     distance_between_points = current_point.distance(finish_point) * 111000
     distance_until_now += distance_between_points
     caloric_burn_until_now += 23 * distance_between_points/1000
 
     cur.execute("""
-        INSERT INTO time_nodes (time, caloric_burn_until_now, distance_until_now, geom)
-        VALUES (%s, %s, %s, ST_Point(%s,%s))
-    """, (current_time, caloric_burn_until_now, distance_until_now, finish_point.x, finish_point.y))
+        INSERT INTO time_nodes (time, biker_id, caloric_burn_until_now, distance_until_now, geom)
+        VALUES (%s, %s, %s, %s, ST_Point(%s,%s))
+    """, (current_time, biker_id, caloric_burn_until_now, distance_until_now, finish_point.x, finish_point.y))
 
 # Commit the changes and close the connection
 conn.commit()
