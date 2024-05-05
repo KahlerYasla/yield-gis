@@ -1,6 +1,5 @@
 import math
 import random
-import datetime
 import psycopg2
 from shapely.geometry import Point, LineString
 
@@ -21,7 +20,7 @@ cur.execute("""
     CREATE TABLE time_nodes (
         id SERIAL PRIMARY KEY,
         biker_id INT,
-        time TIMESTAMP,
+        time_in_seconds INT,
         caloric_burn_until_now INT,
         distance_until_now INT,
         geom GEOMETRY(POINT, 4326),
@@ -55,13 +54,13 @@ def generate_next_point(current_point):
 
 # Generate random biker paths and insert into the table
 biker_count = 10
-total_time = datetime.timedelta(minutes=20)
-time_interval = datetime.timedelta(seconds=20)
+total_time = 20*60
+time_interval = 60
 
 iter = 0
 
 for biker_id in range(1, biker_count + 1):
-    current_time = datetime.datetime.now()
+    current_time = 0
     current_point = start_point
     caloric_burn_until_now = 0.0
     distance_until_now = 0.0
@@ -78,7 +77,7 @@ for biker_id in range(1, biker_count + 1):
 
         # Insert the time node into the table
         cur.execute("""
-            INSERT INTO time_nodes (time, biker_id, caloric_burn_until_now, distance_until_now, geom)
+            INSERT INTO time_nodes (time_in_seconds, biker_id, caloric_burn_until_now, distance_until_now, geom)
             VALUES (%s, %s, %s, %s, ST_Point(%s,%s))
         """, (current_time, biker_id, caloric_burn_until_now, distance_until_now, current_point.x, current_point.y))
 
@@ -101,7 +100,7 @@ for biker_id in range(1, biker_count + 1):
     """, (biker_id, current_point.x, current_point.y, finish_point.x, finish_point.y))
 
     cur.execute("""
-        INSERT INTO time_nodes (time, biker_id, caloric_burn_until_now, distance_until_now, geom)
+        INSERT INTO time_nodes (time_in_seconds, biker_id, caloric_burn_until_now, distance_until_now, geom)
         VALUES (%s, %s, %s, %s, ST_Point(%s,%s))
     """, (current_time, biker_id, caloric_burn_until_now, distance_until_now, current_point.x, current_point.y))
 
@@ -110,7 +109,7 @@ for biker_id in range(1, biker_count + 1):
     caloric_burn_until_now += 23 * distance_between_points/1000
 
     cur.execute("""
-        INSERT INTO time_nodes (time, biker_id, caloric_burn_until_now, distance_until_now, geom)
+        INSERT INTO time_nodes (time_in_seconds, biker_id, caloric_burn_until_now, distance_until_now, geom)
         VALUES (%s, %s, %s, %s, ST_Point(%s,%s))
     """, (current_time, biker_id, caloric_burn_until_now, distance_until_now, finish_point.x, finish_point.y))
 
