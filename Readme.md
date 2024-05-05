@@ -22,4 +22,4 @@ white text represents the biker id;
 #
 the green lines are voronoi polygons;
 #
-![Screenshot](0.png)
+![Screenshot](/public/0.png)

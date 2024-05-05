@@ -5,13 +5,13 @@ import psycopg2
 from shapely.geometry import Point, LineString
 
 # Connect to PostgreSQL/PostGIS
-conn = psycopg2.connect("dbname='dem' user='postgres' host='localhost' password='1234'")
+conn = psycopg2.connect("dbname='postgres' user='kahler' host='localhost' password='3755'")
 cur = conn.cursor()
 
 # Create a table to store the biker paths
 cur.execute("""
-    DROP TABLE IF EXISTS time_nodes;
-    DROP TABLE IF EXISTS biker_paths;
+    DROP TABLE IF EXISTS time_nodes CASCADE;
+    DROP TABLE IF EXISTS biker_paths CASCADE;
     CREATE TABLE biker_paths (
         id SERIAL PRIMARY KEY,
         biker_id INT,
@@ -33,6 +33,9 @@ cur.execute("""
 start_point = Point(32.59500, 36.26572)
 finish_point = Point(32.44838, 36.34925)
 
+# Randomly generate the step_distance_coefficient (propotional to velocity of the biker)
+step_distance_coefficient = random.uniform(0.001, 0.003)
+
 # Generate random next point within bounding box and faced max 30 degrees from the finish point
 def generate_next_point(current_point):
     
@@ -42,8 +45,8 @@ def generate_next_point(current_point):
     angle = math.atan2(finish_point.y - current_point.y, finish_point.x - current_point.x) + angle
 
     # Calculate the coordinates of the next point
-    x = current_point.x + 0.0028 * math.cos(angle)
-    y = current_point.y + 0.003 * math.sin(angle)
+    x = current_point.x + step_distance_coefficient * math.cos(angle)
+    y = current_point.y + step_distance_coefficient * math.sin(angle)
 
     # Create the next point
     next_point = Point(x, y)
@@ -55,13 +58,16 @@ biker_count = 10
 total_time = datetime.timedelta(minutes=20)
 time_interval = datetime.timedelta(seconds=20)
 
+iter = 0
+
 for biker_id in range(1, biker_count + 1):
     current_time = datetime.datetime.now()
     current_point = start_point
     caloric_burn_until_now = 0.0
     distance_until_now = 0.0
 
-    while current_time < datetime.datetime.now() + total_time:
+    step_distance_coefficient = random.uniform(0.001, 0.003)
+    while current_point.distance(finish_point) > step_distance_coefficient:
         # Generate random next point within bounding box
         next_point = generate_next_point(current_point)
         # Insert lines into the table
@@ -82,6 +88,11 @@ for biker_id in range(1, biker_count + 1):
 
         current_point = next_point
         current_time += time_interval
+
+        iter += 1
+
+    print(biker_id, iter)
+    iter = 0
 
     # Insert the lats line into the table
     cur.execute("""
