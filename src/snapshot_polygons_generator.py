@@ -1,6 +1,5 @@
 import psycopg2
-from shapely.geometry import MultiPoint, Polygon
-from shapely.wkt import dumps
+from shapely.geometry import MultiPoint, Polygon, Point
 
 # Connect to the database
 conn = psycopg2.connect("dbname='postgres' user='kahler' host='localhost' password='3755'")
@@ -26,14 +25,16 @@ for sec in range(1, max_time + 1):
     cur.execute("SELECT point_every_time_interval FROM time_nodes WHERE time_in_seconds = %s", (sec,))
     points = cur.fetchall()
 
-    # Create a MultiPoint geometry from fetched points
-    multi_point = MultiPoint([point[0] for point in points])
+    if len(points) == 0:
+        continue
 
-    # Create a convex hull polygon from MultiPoint
-    convex_hull_polygon = multi_point.convex_hull
+    print("Processing second:", sec, "//", len(points), "points")
+
+    cur.execute("SELECT ST_AsText(ST_ConvexHull(ST_GeomFromText('MULTIPOINT(" + ", ".join([str(point[0]) + " " + str(point[0]) for point in points]) + ")')))")
+    polygon = cur.fetchone()[0]
 
     # Insert the convex hull polygon into time_polygons table
-    cur.execute("INSERT INTO time_polygons (time_in_seconds, polygon) VALUES (%s, ST_GeomFromText(%s, 4326))", (sec, dumps(convex_hull_polygon)))
+    cur.execute("INSERT INTO time_polygons (time_in_seconds, polygon) VALUES (%s, %s)", (sec, polygon))
 
 # Commit changes
 conn.commit()
