@@ -69,9 +69,15 @@ for biker_id in range(1, biker_count + 1):
         """, (biker_id, current_time, current_point.x, current_point.y, next_point.x, next_point.y))
 
         # Calculate the caloric burn and distance
-        distance_between_points = current_point.distance(next_point)
+        distance_between_points = current_point.distance(next_point) * 100000
+        print(distance_between_points)
+
         distance_until_now += distance_between_points
-        caloric_burn_until_now += random.randint(1, 2) * distance_between_points
+        print(distance_until_now)
+
+        caloric_burn_until_now += random.randint(500, 1000) * distance_between_points
+        print(caloric_burn_until_now)
+        print('\n')
 
         # Insert the time node into the table
         cur.execute("""
