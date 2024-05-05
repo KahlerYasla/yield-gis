@@ -53,9 +53,6 @@ def generate_next_point(current_point):
 
     return next_point
 
-def get_contestants_in_polygon_at_time_t(t):
-    a = input("Enter point_every_time_interval text of the polygon (like 'LINESTRING(75 29, 77 29, 77 29, 75 29)'):")
-
 def get_ascent_descent(cur):
     for i in range(1, 11):
         qstr = """
@@ -86,6 +83,14 @@ def get_scoreboard(cur):
     print("Placement Order:")
     for i in range(0, len(result)):
         print("Biker {} with {}:{}:00.000".format(str(result[i][0]).ljust(2), str(result[i][1]//3600).rjust(2, "0"), str(int((result[i][1] / 60) % 60)).rjust(2, "0")))
+    print()
+
+def get_kilometers_and_calories(cur):
+    cur.execute("select biker_id, caloric_burn_until_now, distance_until_now from time_nodes where ST_Setsrid(ST_Point(32.44838, 36.34925), 4326) = point_every_time_interval;")
+    result = cur.fetchall()
+    for i in range(10):
+        print("[Biker {}] {} KCal, {} KM".format(result[i][0], result[i][1], result[i][2]/1000))
+    print()
 
 def generate_data_into_db(cur):
     # Generate random biker paths and insert into the table
@@ -117,7 +122,7 @@ def generate_data_into_db(cur):
 
             distance_between_points = current_point.distance(next_point) * 111000
             distance_until_now += distance_between_points
-            caloric_burn_until_now += 23 * distance_between_points/1000
+            caloric_burn_until_now += 27 * distance_between_points/1000
 
             current_point = next_point
             current_time += time_interval
@@ -135,7 +140,7 @@ def generate_data_into_db(cur):
 
         distance_between_points = current_point.distance(finish_point) * 111000
         distance_until_now += distance_between_points
-        caloric_burn_until_now += 23 * distance_between_points/1000
+        caloric_burn_until_now += 27 * distance_between_points/1000
         current_time += time_interval
 
         cur.execute("""
@@ -147,6 +152,7 @@ def generate_data_into_db(cur):
 #generate_data_into_db(cur)
 get_ascent_descent(cur)
 get_scoreboard(cur)
+get_kilometers_and_calories(cur)
 # Commit the changes and close the connection
 cur.close()
 conn.commit()

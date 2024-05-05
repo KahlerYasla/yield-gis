@@ -33,6 +33,9 @@ for sec in range(1, max_time + 1):
     cur.execute("SELECT ST_AsText(ST_ConvexHull(ST_GeomFromText('MULTIPOINT(" + ", ".join([point[0][6:-1] for point in points]) + ")')))")
     polygon = cur.fetchone()[0]
 
+    if "LINESTRING" in polygon or "POINT" in polygon:
+        continue
+
     # Insert the convex hull polygon into time_polygons table
     cur.execute("INSERT INTO time_polygons (time_in_seconds, polygon) VALUES (%s, %s)", (sec, polygon))
 
