@@ -1,5 +1,6 @@
 ## Setup
 qgis + postgis needs to be installed
+#
 Then clone this repo, create a virtual environment and activate it.
 ```bash
 python3 -m venv venv
