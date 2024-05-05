@@ -5,11 +5,13 @@ import psycopg2
 from shapely.geometry import Point, LineString
 
 # Connect to PostgreSQL/PostGIS
-conn = psycopg2.connect("dbname='postgres' user='kahler' host='localhost' password='3755'")
+conn = psycopg2.connect("dbname='dem' user='postgres' host='localhost' password='1234'")
 cur = conn.cursor()
 
 # Create a table to store the biker paths
 cur.execute("""
+    DROP TABLE IF EXISTS biker_paths;
+    DROP TABLE IF EXISTS time_nodes;
     CREATE TABLE time_nodes (
         id SERIAL PRIMARY KEY,
         time TIMESTAMP,
@@ -55,36 +57,28 @@ time_interval = datetime.timedelta(seconds=20)
 for biker_id in range(1, biker_count + 1):
     current_time = datetime.datetime.now()
     current_point = start_point
-    caloric_burn_until_now = 0.1
-    distance_until_now = 0.1
+    caloric_burn_until_now = 0.0
+    distance_until_now = 0.0
 
     while current_time < datetime.datetime.now() + total_time:
         # Generate random next point within bounding box
         next_point = generate_next_point(current_point)
-
         # Insert lines into the table
         cur.execute("""
             INSERT INTO biker_paths (biker_id, time_node_id, geom)
             VALUES (%s, (SELECT id FROM time_nodes WHERE time = %s), ST_SetSRID(ST_MakeLine(ST_Point(%s,%s), ST_Point(%s,%s)), 4326))
         """, (biker_id, current_time, current_point.x, current_point.y, next_point.x, next_point.y))
 
-        # Calculate the caloric burn and distance
-        distance_between_points = current_point.distance(next_point) * 100000
-        print(distance_between_points)
-
-        distance_until_now += distance_between_points
-        print(distance_until_now)
-
-        caloric_burn_until_now += random.randint(500, 1000) * distance_between_points
-        print(caloric_burn_until_now)
-        print('\n')
-
         # Insert the time node into the table
         cur.execute("""
             INSERT INTO time_nodes (time, caloric_burn_until_now, distance_until_now, geom)
             VALUES (%s, %s, %s, ST_Point(%s,%s))
         """, (current_time, caloric_burn_until_now, distance_until_now, current_point.x, current_point.y))
-                    
+
+        distance_between_points = current_point.distance(next_point) * 111000
+        distance_until_now += distance_between_points
+        caloric_burn_until_now += 23 * distance_between_points/1000
+
         current_point = next_point
         current_time += time_interval
 
@@ -93,6 +87,20 @@ for biker_id in range(1, biker_count + 1):
         INSERT INTO biker_paths (biker_id, time_node_id, geom)
         VALUES (%s, (SELECT id FROM time_nodes WHERE time = %s), ST_SetSRID(ST_MakeLine(ST_Point(%s,%s), ST_Point(%s,%s)), 4326))
     """, (biker_id, current_time, current_point.x, current_point.y, finish_point.x, finish_point.y))
+
+    cur.execute("""
+        INSERT INTO time_nodes (time, caloric_burn_until_now, distance_until_now, geom)
+        VALUES (%s, %s, %s, ST_Point(%s,%s))
+    """, (current_time, caloric_burn_until_now, distance_until_now, current_point.x, current_point.y))
+
+    distance_between_points = current_point.distance(finish_point) * 111000
+    distance_until_now += distance_between_points
+    caloric_burn_until_now += 23 * distance_between_points/1000
+
+    cur.execute("""
+        INSERT INTO time_nodes (time, caloric_burn_until_now, distance_until_now, geom)
+        VALUES (%s, %s, %s, ST_Point(%s,%s))
+    """, (current_time, caloric_burn_until_now, distance_until_now, finish_point.x, finish_point.y))
 
 # Commit the changes and close the connection
 conn.commit()
